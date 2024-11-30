@@ -1,0 +1,55 @@
+This code what we want is a back end and front end maybe. 
+so to speak beacuse it will all be in haskell. 
+what we want is to simulate stop lights. 
+Why? 
+I don't know, because stop lights are cool . 
+
+so we want a 4 way stop light. 
+
+like a box like this . 
+
+
+
+   ---
+   --- 
+we will have 
+4 sides . 
+each side will have  (<-) GO WAIT STOP  arrow. 
+so 4 lights. 
+we can have data types for these . 
+why? because its like kind of what you HAVE to do in programming. 
+the HAVE there is it is logically entailed? don't ask me for the argument for that. I am a sophist. 
+Okay. 
+data Light = On 
+           | Off 
+data StopLight = Arrow Light 
+               | Go Light 
+               | Wait Light 
+               | Stop Light  -- ha ha ha, stop light . get it? 
+now here is the BIG kicker. TIME. we need a way to access TIME. 
+TIME is NOT a data type that is EASY to work with I imagine. 
+
+we will use a Time Data.time or time package
+ but this is PSEUDO code not real code so who cares. 
+
+ so basically we say each light has certain length of time 
+
+ data Side = Side 
+           {
+            go :: StopLight 
+            wait :: StopLight 
+            arrow :: StopLight 
+            stop :: StopLight 
+           }
+type Square = (Side,Side,Side,Side)
+so we can get time in an IO monad 
+we will see how it works. 
+I just promised to write pseudo code for every project even if i don't want to 
+ data Side = Side 
+           {
+            go ::    (StopLight, TimeOn)
+            wait ::  (StopLight, TimeOn)
+            arrow :: (StopLight, TimeOn)
+            stop ::  (StopLight, TimeOn)
+           }
+cycle :: Square -> Sq
