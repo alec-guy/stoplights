@@ -59,6 +59,7 @@ executable stoplights
 
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
+    ghc-options: -threaded 
 
     -- Modules included in this executable, other than Main.
     -- other-modules:
@@ -68,8 +69,8 @@ executable stoplights
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.20.0.0, 
-                      time, 
-                      brick
+                      vty,
+                      vty-windows
 
     -- Directories containing source files.
     hs-source-dirs:   app

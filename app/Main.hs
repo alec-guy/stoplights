@@ -1,124 +1,90 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE NamedFieldPuns #-}
+
 
 module Main where
 
-import Control.Monad
-import Data.Time.Clock 
-import Data.Time.Calendar.OrdinalDate (fromOrdinalDateValid)
-import Brick 
---fromOrdinalDate :: Year -> DayOfYear -> Day -- both Integer and Int
+import Data.Int (Int64)
+import Graphics.Vty as V
+import Graphics.Vty.Image as I -- for image outputs for Picture
+import Graphics.Vty.Attributes as A -- for styling images.
+import Graphics.Vty.Platform.Windows
+import Control.Concurrent (threadDelay)
+import Control.Monad (void, when, forever)
+
+sleepSeconds :: Int -> IO () 
+sleepSeconds ms = threadDelay (ms * 1000000)
+
+----------------------------
+data StopLight = StopLight 
+               {arrow :: Bool 
+               ,go    :: Bool 
+               ,wait  :: Bool 
+               ,stop  :: Bool 
+               } deriving (Show , Eq)
+
+blackout :: StopLight 
+blackout = StopLight {arrow=False,go=False,wait=False,stop=False}
+stopLightToImage :: StopLight -> Image 
+stopLightToImage stoplight = 
+    horizCat 
+    [ if arrow stoplight then char defAttr '←' else char defAttr '⚫'
+    , if go stoplight then char defAttr '🟢' else char defAttr '⚫'
+    , if wait stoplight then char defAttr '🟡' else char defAttr '⚫'
+    , if stop stoplight then char defAttr '🔴' else char defAttr '⚫'
+    ]
+-----------------
+titlePage :: Image 
+titlePage = vertCat 
+        [string defAttr "You are at a stop light simulator."
+        ,string defAttr "Press the character 's' to start."
+        ,string defAttr "Press the character 'q' to stop at anytime."
+        ]
+
 --------------------------------------
---       DATA TYPES 
-data Light = On 
-           | Off 
-           deriving (Eq,Show)
-data StopLight a = Arrow a
-                 | Go a
-                 | Wait a 
-                 | Stop a 
-                 deriving (Eq, Show)
-
-instance Functor StopLight where 
-    fmap f light = 
-        case light of  
-            (Arrow l) -> Arrow $ f l 
-            (Go l)    -> Go $ f l 
-            (Wait l)  -> Wait $ f l
-            (Stop l)  -> Stop $ f l
-
-
-data Side = Side 
-          { go :: StopLight Light
-          , wait :: StopLight Light
-          , arrow :: StopLight Light
-          , stop :: StopLight Light
-          } deriving (Eq, Show)
-data Square = Square 
-            {north :: Side 
-            ,south :: Side 
-            ,east  :: Side 
-            ,west  :: Side 
-            } deriving (Eq, Show)
-data Direction = North 
-               | West 
-               | South 
-               | East 
-               deriving (Eq, Show)
-
------------------------------------------------
---          HELPER FUNCTIONS 
-
-isOn :: StopLight Light -> Bool 
-isOn (Go b)    = if b == On then True else False 
-isOn (Wait b)  = if b == On then True else False 
-isOn (Stop b)  = if b == On then True else False 
-isOn (Arrow b) = if b == On then True else False 
-
-getSideSquare :: Direction -> Square -> Side 
-getSideSquare dir sq = 
-    case dir of 
-        North -> north sq 
-        South -> south sq 
-        West  -> west sq 
-        East  -> east sq 
-
-turnOnLight :: StopLight Light -> StopLight Light 
-turnOnLight light = 
-     case isOn light of 
-      True  -> light 
-      False -> On <$ light 
-
-turnOnLightSide :: StopLight Light -> Side -> Side 
-turnOnLightSide light (Side {go = g, stop = s, arrow = a, wait = w}) = 
-    case light of 
-        (Go _)     -> Side {go = turnOnLight light, arrow = a, stop = s, wait = w}
-        (Stop _ )  -> Side {stop = turnOnLight light, go = g, arrow = a, wait = w}
-        (Arrow _ ) -> Side {arrow = turnOnLight light, stop = s, go = g, wait = w}
-        (Wait _)   -> Side {wait = turnOnLight light, stop = s, arrow = a, go = g}
-    
-turnOnLightSquare :: StopLight Light -> Side -> Direction -> Square -> Square 
-turnOnLightSquare light side direction (Square {north = n , south = s, west = w, east = e}) = 
-        let litUpSide = (turnOnLightSide light side)
-        in 
-        case direction of 
-         North -> Square {north = litUpSide, south = s, west = w, east = e}
-         South -> Square {south = litUpSide,north = n,  west = w, east = e}
-         West  -> Square {west = litUpSide, north = n,  east = e, south = s}
-         East  -> Square {east = litUpSide, west = w , north = n , south = s}
-        
-turnOn :: NominalDiffTime -> UTCTime -> StopLight Light -> Direction -> Square -> IO ()
-turnOn seconds currTime light direction square = do 
-    newCurrentTime <- getCurrentTime 
-    let direction = North 
-        cond      = (addUTCTime seconds currTime) <= newCurrentTime
-    newSquare      <- return $ turnOnLightSquare light (getSideSquare direction square) direction square 
-    
-
---------------------------------------------
--- Variables but you know haskell doesn't have variables right? 
-allOff = Side 
-       { go  = Go Off 
-       , wait= Go Off 
-       , arrow = Arrow Off 
-       , stop = Stop Off 
-       }
-
-offSquare = Square 
-         {north = allOff
-         ,south = allOff
-         ,east  = allOff 
-         ,west  = allOff 
-         }
-mySquare = offSquare
----------------------------------------------
 main :: IO ()
 main = do 
-    currentTime <- getCurrentTime :: IO UTCTime 
-    putStrLn $ show mySquare 
-    void (turnOn (fromIntegral 15 :: NominalDiffTime) currentTime (Go On) South mySquare)
-    putStrLn $ show  mySquare 
--- acording to AI 
--- use addUTCTime for adding duration to a time 
--- use diffUTCTime for finding time differences 
--- us toRational to convert to a numeric type 
+    vty <- mkVty defaultConfig 
+    let display = update vty 
+    display $ picForImage titlePage
+    handleBrainDamage vty 
+    
+-------------------------------------------------
+startStopLight :: Vty -> IO ()
+startStopLight vty = do 
+    let display = update vty 
+    display $ picForImage $ stopLightToImage blackout
+    sleepSeconds 1
+    display $ picForImage $ stopLightToImage (StopLight {arrow = False , go = True , wait = False, stop = False})
+    sleepSeconds 15
+    display $ picForImage $ stopLightToImage (StopLight {arrow = False , go = False, wait = True, stop = False})
+    sleepSeconds 5
+    display $ picForImage $ stopLightToImage (StopLight {arrow = False, go = False, wait = False, stop = True})
+    sleepSeconds 5
+    display $ picForImage $ stopLightToImage (StopLight {arrow = True , go = False, wait = False, stop = False})
+    sleepSeconds 10
+    display $ picForImage $ stopLightToImage (StopLight {arrow = False, go = False, wait = False, stop = True})
+    sleepSeconds 15
+    display $ picForImage $ stopLightToImage (StopLight {arrow = True, go = True, wait = False, stop = False})
+    sleepSeconds 10 
+
+
+    
+    
+        
+    
+    
+
+handleBrainDamage :: Vty -> IO () 
+handleBrainDamage vty = do 
+    event <- nextEvent vty 
+    case event of 
+        (EvKey (KChar 's') []) -> when (event == (EvKey (KChar 's') [])) $ forever $ startStopLight vty 
+        (EvKey (KChar 'q') []) -> shutdown vty 
+        _                      -> handleBrainDamage vty 
+
+
+
+
+
+
+
