@@ -8,7 +8,7 @@ import Graphics.Vty as V
 import Graphics.Vty.Image as I -- for image outputs for Picture
 import Graphics.Vty.Attributes as A -- for styling images.
 import Graphics.Vty.Platform.Windows
-import Control.Concurrent (threadDelay)
+import Control.Concurrent 
 import Control.Monad (void, when, forever)
 
 sleepSeconds :: Int -> IO () 
@@ -78,12 +78,19 @@ handleBrainDamage :: Vty -> IO ()
 handleBrainDamage vty = do 
     event <- nextEvent vty 
     case event of 
-        (EvKey (KChar 's') []) -> when (event == (EvKey (KChar 's') [])) $ forever $ startStopLight vty 
+        (EvKey (KChar 's') []) -> f vty 
+
+ 
         (EvKey (KChar 'q') []) -> shutdown vty 
         _                      -> handleBrainDamage vty 
 
-
-
+f :: Vty  -> IO () 
+f vty = do 
+  startStopLight vty 
+  newEvent <- nextEvent vty 
+  case newEvent of 
+    (EvKey (KChar 'q') []) -> shutdown vty 
+    _                      -> f vty 
 
 
 
